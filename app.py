@@ -1,118 +1,94 @@
 import streamlit as st
+import random
 import json
+import os
 from PIL import Image
 
 st.set_page_config(page_title="🌿 Weed ID Quiz", layout="centered")
 
-# --- Background and Styling ---
-st.markdown("""
-    <style>
-        body {
-            background: linear-gradient(135deg, #f1f8e9, #e0f7fa);
-        }
-        .main {
-            background-color: #ffffffcc;
-            padding: 2rem;
-            border-radius: 12px;
-            box-shadow: 0px 0px 15px rgba(0,0,0,0.1);
-        }
-        h1, h3, h5 {
-            text-align: center;
-        }
-        .stButton>button {
-            font-size: 1.2em;
-            padding: 0.6em 1.2em;
-            border-radius: 8px;
-        }
-    </style>
-""", unsafe_allow_html=True)
-
 # --- Load Quiz Data ---
 @st.cache_data
-def load_quiz():
+def load_quiz_data():
     with open("quiz_data.json", "r") as f:
         return json.load(f)
 
-questions = load_quiz()
+data = load_quiz_data()
+MAX_QUESTIONS = 5  # You can change the number of rounds here
 
-# --- Session State Initialization ---
-if "page" not in st.session_state:
-    st.session_state.page = "start"
+# --- Initialize Session State ---
 if "score" not in st.session_state:
     st.session_state.score = 0
-if "question_index" not in st.session_state:
-    st.session_state.question_index = 0
+if "question_num" not in st.session_state:
+    st.session_state.question_num = 1
 if "answered" not in st.session_state:
     st.session_state.answered = False
-if "selected_option" not in st.session_state:
-    st.session_state.selected_option = None
+if "correct_answer" not in st.session_state:
+    st.session_state.correct_answer = ""
+if "options" not in st.session_state:
+    st.session_state.options = []
+if "current_species" not in st.session_state:
+    st.session_state.current_species = None
 
-# --- Navigation Functions ---
-def start_quiz():
-    st.session_state.page = "quiz"
-    st.session_state.score = 0
-    st.session_state.question_index = 0
+# --- Setup a New Question ---
+def load_new_question():
+    species_entry = random.choice(data["species_metadata"])
+    correct_answer = os.path.splitext(os.path.basename(species_entry["image_path"]))[0]
+    all_species = list(set(data["weed_species"]) - {correct_answer})
+    wrong_choices = random.sample(all_species, 3)
+    options = wrong_choices + [correct_answer]
+    random.shuffle(options)
+
+    st.session_state.current_species = species_entry
+    st.session_state.correct_answer = correct_answer
+    st.session_state.options = options
     st.session_state.answered = False
-    st.session_state.selected_option = None
 
-def next_question():
-    st.session_state.question_index += 1
-    st.session_state.answered = False
-    st.session_state.selected_option = None
-    if st.session_state.question_index >= len(questions):
-        st.session_state.page = "end"
+# --- Load New Question at Start ---
+if st.session_state.current_species is None:
+    load_new_question()
 
-# --- START Page ---
-if st.session_state.page == "start":
-    st.markdown("<h1>🌿 WEEDS QUIZ</h1>", unsafe_allow_html=True)
-    st.markdown("<h3>Can you identify these weeds?</h3>", unsafe_allow_html=True)
-    st.markdown("<br>", unsafe_allow_html=True)
-    
-    col1, col2, col3 = st.columns([1, 2, 1])
+# --- Display Quiz ---
+if st.session_state.question_num <= MAX_QUESTIONS:
+    st.title("🌱 Weed Identification Quiz")
+    st.markdown(f"**Question {st.session_state.question_num} of {MAX_QUESTIONS}**")
+    st.markdown(f"**{data['Question']}**")
+
+    img = Image.open(st.session_state.current_species["image_path"])
+    st.image(img, caption="Identify this weed", use_container_width=True)
+
+    selected = st.radio("Choose the correct species:", st.session_state.options, key=st.session_state.question_num)
+
+    col1, col2 = st.columns([1, 1])
+
+    with col1:
+        submit_clicked = st.button("Submit Answer", key="submit")
+
     with col2:
-        if st.button("🚀 Start Quiz", use_container_width=True):
-            start_quiz()
+        next_clicked = st.button("Next Question", key="next", disabled=not st.session_state.answered)
 
-# --- QUIZ Page ---
-elif st.session_state.page == "quiz":
-    q = questions[st.session_state.question_index]
-
-    st.markdown(f"<h5>Score: {st.session_state.score} / {st.session_state.question_index}</h5>", unsafe_allow_html=True)
-    st.image(Image.open(q["image_path"]), use_container_width=True)
-    st.subheader(q["question"])
-
-    # Disable radio if answered
-    disabled = st.session_state.answered
-
-    selected = st.radio(
-        "Choose one:",
-        q["options"],
-        index=q["options"].index(st.session_state.selected_option) if st.session_state.selected_option else None,
-        disabled=disabled,
-        key=f"question_{st.session_state.question_index}"
-    )
-
-    if not disabled:
-        st.session_state.selected_option = selected
-
-    if st.button("Submit", disabled=disabled) and not st.session_state.answered and selected:
+    if submit_clicked and not st.session_state.answered:
         st.session_state.answered = True
-        if selected == q["correctAnswer"]:
+        if selected == st.session_state.correct_answer:
             st.success("✅ Correct!")
             st.session_state.score += 1
         else:
-            st.error(f"❌ Incorrect. Correct answer: {q['correctAnswer']}")
+            st.error(f"❌ Wrong! The correct answer was **{st.session_state.correct_answer}**.")
 
-    if st.session_state.answered:
-        st.button("Next", on_click=next_question)
+    if next_clicked and st.session_state.answered:
+        st.session_state.question_num += 1
+        if st.session_state.question_num <= MAX_QUESTIONS:
+            load_new_question()
+        else:
+            st.session_state.current_species = None  # End of quiz
 
-# --- END Page ---
-elif st.session_state.page == "end":
-    st.balloons()
-    st.markdown("<h1>🎉 Quiz Complete!</h1>", unsafe_allow_html=True)
-    st.markdown(f"<h3>Your Final Score:</h3>", unsafe_allow_html=True)
-    st.markdown(f"<h2 style='color:green; text-align:center'>{st.session_state.score} / {len(questions)}</h2>", unsafe_allow_html=True)
+else:
+    st.title("🎉 Quiz Complete!")
+    st.markdown(f"Your final score: **{st.session_state.score} / {MAX_QUESTIONS}**")
 
-    st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🔄 Restart Quiz"):
-        st.session_state.page = "start"
+    if st.button("Play Again"):
+        st.session_state.score = 0
+        st.session_state.question_num = 1
+        st.session_state.answered = False
+        st.session_state.correct_answer = ""
+        st.session_state.options = []
+        st.session_state.current_species = None
