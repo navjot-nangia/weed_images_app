@@ -22,7 +22,7 @@ class WeedQuiz:
         for sub_dir in self.species_dir.iterdir():
             if sub_dir.is_dir():
                 species_name = sub_dir.name
-                for img_path in sub_dir.glob("*.JPG"):
+                for img_path in list(sub_dir.glob("*.JPG")) + list(sub_dir.glob("*.jpg")):
                     species_metadata[species_name].append(str(img_path))
 
         if save_debug:
@@ -96,29 +96,37 @@ if st.session_state.question_num <= MAX_QUESTIONS:
     # Answer selection
     selected = st.radio("Choose the correct species:", st.session_state.options, key="selected_option")
 
-    # Buttons
-    col1, col2 = st.columns([1, 1])
-    with col1:
-        submit_clicked = st.button("✅ Submit Answer", key="submit")
-    with col2:
-        next_clicked = st.button("➡️ Next Question", key="next", disabled=not st.session_state.answered)
+    def handle_submit():
+        if not st.session_state.answered:
+            st.session_state.answered = True
+            if st.session_state.selected_option == st.session_state.correct_answer:
+                st.session_state.score += 1
+                st.session_state.feedback = "correct"
+            else:
+                st.session_state.feedback = "wrong"
 
-    # Submit logic
-    if submit_clicked and not st.session_state.answered:
-        st.session_state.answered = True
-        if selected == st.session_state.correct_answer:
-            st.success("✅ Correct!")
-            st.session_state.score += 1
-        else:
-            st.error(f"❌ Wrong! The correct answer was **{st.session_state.correct_answer}**.")
-
-    # Next question logic
-    if next_clicked and st.session_state.answered:
+    def handle_next():
         st.session_state.question_num += 1
         if st.session_state.question_num <= MAX_QUESTIONS:
             quiz.load_new_question()
         else:
-            st.session_state.current_image_path = None  # Quiz complete trigger
+            st.session_state.current_image_path = None  # Triggers quiz complete
+        st.session_state.feedback = None
+
+    # Show feedback from last question
+    if "feedback" in st.session_state:
+        if st.session_state.feedback == "correct":
+            st.success("✅ Correct!")
+        elif st.session_state.feedback == "wrong":
+            st.error(f"❌ Wrong! The correct answer was **{st.session_state.correct_answer}**.")
+
+    # Buttons with on_click handlers
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.button("✅ Submit Answer", on_click=handle_submit, disabled=st.session_state.answered)
+    with col2:
+        st.button("➡️ Next Question", on_click=handle_next, disabled=not st.session_state.answered)
+
 
 # --- Quiz Complete ---
 else:
