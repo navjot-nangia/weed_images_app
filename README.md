@@ -34,3 +34,6 @@ This is a simple Streamlit web app for testing your knowledge of weed species us
 3. Ensure you have a `quiz_data.json` file and the corresponding images in the correct paths.
 
 ### Running the App
+ 
+
+Note: Use ngrok to tunnel the app through local computer
