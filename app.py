@@ -8,8 +8,6 @@ from PIL import Image
 # Set Streamlit page configuration
 st.set_page_config(page_title="🌿 Weed ID Quiz", layout="centered")
 
-MAX_QUESTIONS = 10
-
 class WeedQuiz:
     """
     A class to handle the logic of the Weed Identification Quiz.
@@ -68,26 +66,38 @@ def reset_quiz():
     st.session_state.correct_answer = ""
     st.session_state.options = []
     st.session_state.current_image_path = None
+    st.session_state.quiz_started = False
     st.session_state.pop("selected_option", None)
-    quiz.load_new_question()
 
 # --- Initialize ---
 quiz = WeedQuiz(species_dir="assets")
 init_session_state()
+
+# --- Question count input before quiz starts ---
+if "max_questions" not in st.session_state:
+    st.session_state.max_questions = 5  # default value
+
+if st.session_state.question_num == 1 and not st.session_state.get("quiz_started", False):
+    st.title("🌱 Weed Identification Quiz Setup")
+    st.session_state.max_questions = st.number_input("How many questions do you want?", min_value=1, max_value=50, value=5, step=1)
+    if st.button("Start Quiz"):
+        st.session_state.quiz_started = True
+        quiz.load_new_question()
+    st.stop()
 
 # --- Load First Question if Needed ---
 if st.session_state.current_image_path is None:
     quiz.load_new_question()
 
 # --- UI Layout ---
-if st.session_state.question_num <= MAX_QUESTIONS:
+if st.session_state.question_num <= st.session_state.max_questions:
     st.title("🌱 Weed Identification Quiz")
-    st.markdown(f"**Question {st.session_state.question_num} of {MAX_QUESTIONS}**")
-    st.progress(st.session_state.question_num / MAX_QUESTIONS)
+    st.markdown(f"**Question {st.session_state.question_num} of {st.session_state.max_questions}**")
+    st.progress(st.session_state.question_num / st.session_state.max_questions)
     st.markdown("What is the name of this weed?")
 
     # Display score
-    st.markdown(f"**Current Score:** {st.session_state.score} / {MAX_QUESTIONS}")
+    st.markdown(f"**Current Score:** {st.session_state.score} / {st.session_state.max_questions}")
 
     # Display image
     img = Image.open(st.session_state.current_image_path)
@@ -107,7 +117,7 @@ if st.session_state.question_num <= MAX_QUESTIONS:
 
     def handle_next():
         st.session_state.question_num += 1
-        if st.session_state.question_num <= MAX_QUESTIONS:
+        if st.session_state.question_num <= st.session_state.max_questions:
             quiz.load_new_question()
         else:
             st.session_state.current_image_path = None  # Triggers quiz complete
@@ -127,11 +137,10 @@ if st.session_state.question_num <= MAX_QUESTIONS:
     with col2:
         st.button("➡️ Next Question", on_click=handle_next, disabled=not st.session_state.answered)
 
-
 # --- Quiz Complete ---
 else:
     st.title("🎉 Quiz Complete!")
-    st.markdown(f"Your final score: **{st.session_state.score} / {MAX_QUESTIONS}**")
+    st.markdown(f"Your final score: **{st.session_state.score} / {st.session_state.max_questions}**")
 
     if st.button("🔁 Play Again"):
         reset_quiz()
