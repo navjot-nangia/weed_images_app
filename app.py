@@ -8,13 +8,14 @@ from PIL import Image
 # Set Streamlit page configuration
 st.set_page_config(page_title="🌿 Weed ID Quiz", layout="centered")
 
+MAX_QUESTIONS = 10
+
 class WeedQuiz:
     """
     A class to handle the logic of the Weed Identification Quiz.
     """
-    def __init__(self, species_dir: str, max_questions: int = 7):
+    def __init__(self, species_dir: str):
         self.species_dir = Path(species_dir)
-        self.max_questions = max_questions
         self.species_metadata = self.map_species_to_images(save_debug=False)
 
     def map_species_to_images(self, save_debug=False):
@@ -71,9 +72,8 @@ def reset_quiz():
     quiz.load_new_question()
 
 # --- Initialize ---
-quiz = WeedQuiz(species_dir="assets", max_questions=5)
+quiz = WeedQuiz(species_dir="assets")
 init_session_state()
-MAX_QUESTIONS = quiz.max_questions
 
 # --- Load First Question if Needed ---
 if st.session_state.current_image_path is None:
