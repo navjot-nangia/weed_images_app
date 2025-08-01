@@ -36,4 +36,4 @@ This is a simple Streamlit web app for testing your knowledge of weed species us
 ### Running the App
  
 
-Note: Use ngrok to tunnel the app through local computer
+Note: Use ngrok to tunnel the app through local computer: ngrok http 8501 
