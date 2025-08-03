@@ -68,6 +68,7 @@ def reset_quiz():
     st.session_state.current_image_path = None
     st.session_state.quiz_started = False
     st.session_state.pop("selected_option", None)
+    st.session_state.pop("feedback", None)
 
 # --- Initialize ---
 quiz = WeedQuiz(species_dir="assets")
@@ -80,9 +81,12 @@ if "max_questions" not in st.session_state:
 if st.session_state.question_num == 1 and not st.session_state.get("quiz_started", False):
     st.title("🌱 Weed Identification Quiz Setup")
     st.session_state.max_questions = st.number_input("How many questions do you want?", min_value=1, max_value=50, value=5, step=1)
-    if st.button("Start Quiz"):
+
+    def start_quiz():
         st.session_state.quiz_started = True
         quiz.load_new_question()
+
+    st.button("Start Quiz", on_click=start_quiz)
     st.stop()
 
 # --- Load First Question if Needed ---
@@ -142,5 +146,4 @@ else:
     st.title("🎉 Quiz Complete!")
     st.markdown(f"Your final score: **{st.session_state.score} / {st.session_state.max_questions}**")
 
-    if st.button("🔁 Play Again"):
-        reset_quiz()
+    st.button("🔁 Play Again", on_click=reset_quiz)
